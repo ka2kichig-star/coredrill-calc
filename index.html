@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>蓮コア開口計算ツール v8</title>
+<title>連コア開口計算ツール v8</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
   :root{
@@ -68,7 +68,7 @@
 <body>
  
 <h1>⬤ CORE DRILL CALC</h1>
-<p class="subtitle">蓮コア開口 計算・配置最適化ツール v8</p>
+<p class="subtitle">連コア開口 計算・配置最適化ツール v8</p>
  
 <!-- 開口形状 -->
 <div class="card">
@@ -80,24 +80,32 @@
   </div>
   <div id="input-rect">
     <div class="form-row">
-      <div class="form-group"><label>開口 幅 W (mm)</label><input type="number" id="rect-w" value="800" min="1"></div>
-      <div class="form-group"><label>開口 高さ H (mm)</label><input type="number" id="rect-h" value="600" min="1"></div>
+      <div class="form-group"><label>開口 幅 W (mm)</label><input type="number" id="rect-w" value="800" min="1" oninput="updatePreview()"></div>
+      <div class="form-group"><label>開口 高さ H (mm)</label><input type="number" id="rect-h" value="600" min="1" oninput="updatePreview()"></div>
     </div>
   </div>
   <div id="input-circle" class="hidden">
     <div class="form-row">
-      <div class="form-group"><label>開口 直径 D (mm)</label><input type="number" id="circle-d" value="600" min="1"></div>
+      <div class="form-group"><label>開口 直径 D (mm)</label><input type="number" id="circle-d" value="600" min="1" oninput="updatePreview()"></div>
     </div>
   </div>
   <div id="input-lshape" class="hidden">
     <div class="hint">外形 W×H から右上の切り欠き (cW×cH) を引いた形状</div>
     <div class="form-row">
-      <div class="form-group"><label>外形 幅 W (mm)</label><input type="number" id="l-w" value="1000" min="1"></div>
-      <div class="form-group"><label>外形 高さ H (mm)</label><input type="number" id="l-h" value="800" min="1"></div>
+      <div class="form-group"><label>外形 幅 W (mm)</label><input type="number" id="l-w" value="1000" min="1" oninput="updatePreview()"></div>
+      <div class="form-group"><label>外形 高さ H (mm)</label><input type="number" id="l-h" value="800" min="1" oninput="updatePreview()"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>切り欠き 幅 cW (mm)</label><input type="number" id="l-cw" value="400" min="1"></div>
-      <div class="form-group"><label>切り欠き 高さ cH (mm)</label><input type="number" id="l-ch" value="400" min="1"></div>
+      <div class="form-group"><label>切り欠き 幅 cW (mm)</label><input type="number" id="l-cw" value="400" min="1" oninput="updatePreview()"></div>
+      <div class="form-group"><label>切り欠き 高さ cH (mm)</label><input type="number" id="l-ch" value="400" min="1" oninput="updatePreview()"></div>
+    </div>
+  </div>
+
+  <div class="core-preview" style="margin-top:14px; background:rgba(59,130,246,.08); border-color:rgba(59,130,246,.3);">
+    <div class="core-preview-label" style="color:var(--blue);">開口部の推定重量</div>
+    <div>
+      <span class="core-preview-value" id="preview-op-weight" style="color:var(--blue);">-</span>
+      <span class="core-preview-unit"> kg</span>
     </div>
   </div>
 </div>
@@ -252,6 +260,7 @@ function setShape(s){
     t.classList.toggle('active',['rect','circle','lshape'][i]===s));
   ['rect','circle','lshape'].forEach(id=>
     document.getElementById('input-'+id).classList.toggle('hidden',id!==s));
+  updatePreview();
 }
  
 function setMode(m){
@@ -276,11 +285,25 @@ function getCorePhi(){
 function updatePreview(){
   const phi=getCorePhi(),wallT=parseFloat(document.getElementById('wall-t').value),
         density=parseFloat(document.getElementById('density').value);
-  if(!phi||!wallT||!density||isNaN(phi)){document.getElementById('preview-w1').textContent='-';return;}
+
+  const op = getOpening();
+  const opWeightEl = document.getElementById('preview-op-weight');
+  if (op && wallT && density && opWeightEl) {
+    const totalVol = op.area * wallT / 1000;
+    const totalWeight = totalVol * density / 1000;
+    opWeightEl.textContent = totalWeight.toFixed(1);
+  } else if (opWeightEl) {
+    opWeightEl.textContent = '-';
+  }
+
+  if(!phi||!wallT||!density||isNaN(phi)){
+    if(document.getElementById('preview-w1')) document.getElementById('preview-w1').textContent='-';
+    return;
+  }
   const vol=Math.PI*(phi/2)**2*wallT/1000;
   const w=vol*density/1000;
-  document.getElementById('preview-w1').textContent=w.toFixed(2);
-  document.getElementById('preview-detail').textContent=`Φ${phi} × t${wallT}\n${vol.toFixed(0)} cm³`;
+  if(document.getElementById('preview-w1')) document.getElementById('preview-w1').textContent=w.toFixed(2);
+  if(document.getElementById('preview-detail')) document.getElementById('preview-detail').textContent=`Φ${phi} × t${wallT}\n${vol.toFixed(0)} cm³`;
 }
 updatePreview();
  
@@ -315,13 +338,12 @@ function ptIn(op,px,py){
 }
  
 // ===== ギザギザなしの中心オフセット計算 =====
-// コアが輪郭をまたぐ。隣コアとの被りがoverlapのとき、
-// 被りの端が輪郭上でつながる = ギザギザがギリギリ消える位置
-// → 中心は輪郭から【内側に】 overlap/2
-// 例: 160Φ overlap=20mm → 中心は輪郭から内側10mm（外側に70mmはみ出す）
+// コアが輪郭をまたぐ。隣接コアとの交点が輪郭上に乗るようにする（はみ出しを最小化）
 function cleanOffset(phi, overlap){
-  // 正の値 = 内側への距離
-  return overlap / 2;
+  const r = phi / 2;
+  const step = phi - overlap;
+  const h2 = r*r - (step/2)*(step/2);
+  return h2 > 0 ? Math.sqrt(h2) : 0;
 }
  
 // ===== びっしり配置 =====
@@ -366,8 +388,8 @@ function arrangeFull(op, phi, overlap, isClean){
   if(W<0||H<0) return [];
  
   // 横・縦それぞれ最少本数（数学的に隙間ができない最小の配置数）
-  const nCols = W<0.01 ? 1 : Math.max(1, Math.round(W/step)) + 1;
-  const nRows = H<0.01 ? 1 : Math.max(1, Math.round(H/step)) + 1;
+  const nCols = W<0.01 ? 1 : Math.max(1, Math.ceil(W/step)) + 1;
+  const nRows = H<0.01 ? 1 : Math.max(1, Math.ceil(H/step)) + 1;
  
   // 四方の輪郭にコア中心がピタッと乗るように均等間隔を算出
   const dx = nCols>1 ? W/(nCols-1) : 0;
@@ -426,8 +448,7 @@ function getOutlinePos(op, phi, overlap, isClean){
     const R=op.r-inset;
     if(R<=0)return[];
     const perim = 2*Math.PI*R;
-    const n = Math.max(3, Math.round(perim/step));
-    const actualStep = perim / n;
+    const n = Math.max(3, Math.ceil(perim/step));
     for(let i=0; i<n; i++){
       const a = (2*Math.PI*i)/n;
       pts.push([op.cx+R*Math.cos(a), op.cy+R*Math.sin(a)]);
@@ -436,27 +457,16 @@ function getOutlinePos(op, phi, overlap, isClean){
   }
   
   const corners = getCornerPos(op, phi, overlap, isClean);
-  let perim = 0;
-  const edges = [];
   for(let i=0; i<corners.length; i++) {
-    const [ax, ay] = corners[i];
-    const [bx, by] = corners[(i+1)%corners.length];
+    const ax = corners[i][0], ay = corners[i][1];
+    const bx = corners[(i+1)%corners.length][0], by = corners[(i+1)%corners.length][1];
     const len = Math.sqrt((bx-ax)**2 + (by-ay)**2);
-    edges.push({ax, ay, bx, by, len, start: perim});
-    perim += len;
-  }
-  
-  const n = Math.max(1, Math.round(perim / step));
-  const actualStep = perim / n;
-  
-  for(let i=0; i<n; i++) {
-    let d = i * actualStep;
-    for(const edge of edges) {
-      if (d >= edge.start && d < edge.start + edge.len + 0.001) {
-        const t = (d - edge.start) / edge.len;
-        pts.push([edge.ax + (edge.bx - edge.ax)*t, edge.ay + (edge.by - edge.ay)*t]);
-        break;
-      }
+    
+    if (len <= 0.01) continue;
+    const n = Math.max(1, Math.ceil(len / step));
+    for(let j=0; j<n; j++) {
+      const t = j / n;
+      pts.push([ax + (bx - ax)*t, ay + (by - ay)*t]);
     }
   }
   return pts;
@@ -652,24 +662,35 @@ function calculate(){
   let mainPos=[],cornerPos=[],splitPos=[];
   let garaKg=0;
   let splitInfo=null;
+
+  if (op.type !== 'circle') {
+    cornerPos = getCornerPos(op, phi, overlap, isClean);
+  }
  
   if(isFull){
-    mainPos=arrangeFull(op,phi,overlap,isClean);
-    if(mainPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
-  }else{
-    mainPos=getOutlinePos(op,phi,overlap,isClean);
-    if(mainPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
- 
-    // 角コア
-    if(op.type!=='circle'){
-      const cands=getCornerPos(op,phi,overlap,isClean);
-      const minDist=(phi-overlap)-1;
-      for(const[cx,cy]of cands){
-        let too=false;
-        for(const[ex,ey]of mainPos)if((cx-ex)**2+(cy-ey)**2<minDist**2){too=true;break;}
-        if(!too)cornerPos.push([cx,cy]);
+    const gridPos = arrangeFull(op,phi,overlap,isClean);
+    for(const [px, py] of gridPos) {
+      let isCorner = false;
+      for (const [cx, cy] of cornerPos) {
+        if (Math.hypot(px - cx, py - cy) < 10) {
+          isCorner = true; break;
+        }
       }
+      if (!isCorner) mainPos.push([px, py]);
     }
+    if(mainPos.length===0 && cornerPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
+  }else{
+    const outlinePts = getOutlinePos(op,phi,overlap,isClean);
+    for(const [px, py] of outlinePts) {
+      let isCorner = false;
+      for (const [cx, cy] of cornerPos) {
+        if (Math.hypot(px - cx, py - cy) < 10) {
+          isCorner = true; break;
+        }
+      }
+      if (!isCorner) mainPos.push([px, py]);
+    }
+    if(mainPos.length===0 && cornerPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
  
     // 残ガラ重量推定
     const allMain=[...mainPos,...cornerPos];
