@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蓮コア開口計算ツール v8</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  :root{
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#222636;--border:#2e3348;
+    --accent:#f97316;--accent2:#fb923c;--text:#e8eaf0;--text2:#8b90a8;
+    --green:#22c55e;--blue:#3b82f6;--red:#ef4444;--yellow:#eab308;--purple:#a855f7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;padding:16px;}
+  h1{font-size:18px;font-weight:700;color:var(--accent);letter-spacing:.05em;margin-bottom:4px;font-family:'JetBrains Mono',monospace;}
+  .subtitle{font-size:11px;color:var(--text2);margin-bottom:20px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;}
+  .card-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;font-family:'JetBrains Mono',monospace;}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  .tab{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;padding:7px 14px;cursor:pointer;transition:all .2s;}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+  .form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px;}
+  .form-group label{font-size:11px;color:var(--text2);}
+  .form-group input,.form-group select{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;padding:8px 10px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s;width:100%;}
+  .form-group input:focus,.form-group select:focus{border-color:var(--accent);}
+  .core-preview{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;display:flex;align-items:center;gap:12px;}
+  .core-preview-label{font-size:11px;color:var(--text2);white-space:nowrap;}
+  .core-preview-value{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent);}
+  .core-preview-unit{font-size:11px;color:var(--text2);}
+  .hint{font-size:10px;color:var(--text2);background:var(--surface2);border-radius:6px;padding:8px 10px;margin-bottom:10px;border-left:3px solid var(--accent);}
+  .mode-cards{display:flex;flex-direction:column;gap:8px;}
+  .mode-card{background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;}
+  .mode-card.active{border-color:var(--accent);background:rgba(249,115,22,.08);}
+  .mode-card-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .mode-card-desc{font-size:11px;color:var(--text2);}
+  .gara-target-box{background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:12px;margin-top:14px;display:none;}
+  .gara-target-title{font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:8px;letter-spacing:.05em;}
+  .gara-target-hint{font-size:10px;color:var(--text2);margin-top:6px;}
+  .calc-btn{width:100%;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:700;padding:14px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;letter-spacing:.05em;transition:background .2s,transform .1s;margin-bottom:14px;}
+  .calc-btn:active{transform:scale(.98);}
+  .calc-btn:hover{background:var(--accent2);}
+  .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .result-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+  .result-item.yellow{border-color:rgba(234,179,8,.5);}
+  .result-item.green{border-color:rgba(34,197,94,.5);}
+  .result-item.blue{border-color:rgba(59,130,246,.5);}
+  .result-label{font-size:10px;color:var(--text2);margin-bottom:4px;}
+  .result-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent);}
+  .result-item.yellow .result-value{color:var(--yellow);}
+  .result-item.green .result-value{color:var(--green);}
+  .result-item.blue .result-value{color:var(--blue);}
+  .result-unit{font-size:11px;color:var(--text2);margin-top:2px;}
+  .detail-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .detail-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;}
+  .detail-table td:first-child{color:var(--text2);}
+  .detail-table td:last-child{color:var(--text);text-align:right;}
+  #canvas-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;overflow-x:auto;display:none;}
+  canvas{display:block;margin:0 auto;}
+  .legend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
+  .legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .error-msg{background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:6px;color:var(--red);font-size:12px;padding:8px 12px;margin-bottom:14px;display:none;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+ 
+<h1>⬤ CORE DRILL CALC</h1>
+<p class="subtitle">蓮コア開口 計算・配置最適化ツール v8</p>
+ 
+<!-- 開口形状 -->
+<div class="card">
+  <div class="card-title">開口形状</div>
+  <div class="tabs" id="shape-tabs">
+    <div class="tab active" onclick="setShape('rect')">長方形 / 正方形</div>
+    <div class="tab" onclick="setShape('circle')">円形</div>
+    <div class="tab" onclick="setShape('lshape')">L字</div>
+  </div>
+  <div id="input-rect">
+    <div class="form-row">
+      <div class="form-group"><label>開口 幅 W (mm)</label><input type="number" id="rect-w" value="800" min="1"></div>
+      <div class="form-group"><label>開口 高さ H (mm)</label><input type="number" id="rect-h" value="600" min="1"></div>
+    </div>
+  </div>
+  <div id="input-circle" class="hidden">
+    <div class="form-row">
+      <div class="form-group"><label>開口 直径 D (mm)</label><input type="number" id="circle-d" value="600" min="1"></div>
+    </div>
+  </div>
+  <div id="input-lshape" class="hidden">
+    <div class="hint">外形 W×H から右上の切り欠き (cW×cH) を引いた形状</div>
+    <div class="form-row">
+      <div class="form-group"><label>外形 幅 W (mm)</label><input type="number" id="l-w" value="1000" min="1"></div>
+      <div class="form-group"><label>外形 高さ H (mm)</label><input type="number" id="l-h" value="800" min="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>切り欠き 幅 cW (mm)</label><input type="number" id="l-cw" value="400" min="1"></div>
+      <div class="form-group"><label>切り欠き 高さ cH (mm)</label><input type="number" id="l-ch" value="400" min="1"></div>
+    </div>
+  </div>
+</div>
+ 
+<!-- コア・壁設定 -->
+<div class="card">
+  <div class="card-title">コア・壁設定</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>コア径 Φ (mm)</label>
+      <select id="core-phi" onchange="onSettingChange()">
+        <option value="65">65Φ</option><option value="75">75Φ</option>
+        <option value="100">100Φ</option><option value="130">130Φ</option>
+        <option value="160" selected>160Φ</option><option value="200">200Φ</option>
+        <option value="custom">カスタム</option>
+      </select>
+    </div>
+    <div class="form-group hidden" id="custom-phi-group">
+      <label>カスタム Φ (mm)</label>
+      <input type="number" id="custom-phi" value="180" min="1" oninput="onSettingChange()">
+    </div>
+    <div class="form-group">
+      <label>壁厚 t (mm)</label>
+      <input type="number" id="wall-t" value="200" min="1" oninput="onSettingChange()">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>コンクリート比重</label>
+      <input type="number" id="density" value="2.3" step="0.01" min="0.1" oninput="onSettingChange()">
+    </div>
+    <div class="form-group">
+      <label>コア同士の被り (mm)</label>
+      <input type="number" id="overlap" value="20" min="0">
+    </div>
+  </div>
+  <div class="core-preview">
+    <div class="core-preview-label">コア1本の重量</div>
+    <div>
+      <span class="core-preview-value" id="preview-w1">-</span>
+      <span class="core-preview-unit"> kg / 本</span>
+    </div>
+    <div style="font-size:10px;color:var(--text2);margin-left:auto;white-space:pre-line;" id="preview-detail"></div>
+  </div>
+</div>
+ 
+<!-- 施工モード -->
+<div class="card">
+  <div class="card-title">施工モード</div>
+  <div class="mode-cards">
+    <div class="mode-card active" id="mode-full-jagged" onclick="setMode('full-jagged')">
+      <div class="mode-card-title">① びっしり（ギザギザあり）</div>
+      <div class="mode-card-desc">コアの端が開口輪郭に沿う。開口内にびっしり充填。端部にギザギザが残る。</div>
+    </div>
+    <div class="mode-card" id="mode-full-clean" onclick="setMode('full-clean')">
+      <div class="mode-card-title">② びっしり（ギザギザなし）</div>
+      <div class="mode-card-desc">輪郭をまたいで削孔し隣コアの被り部分が輪郭上でつながる。開口サイズぴったり・端部きれい。</div>
+    </div>
+    <div class="mode-card" id="mode-outline-jagged" onclick="setMode('outline-jagged')">
+      <div class="mode-card-title">③ 外周のみ（ギザギザあり）</div>
+      <div class="mode-card-desc">コアの端が輪郭に沿って外周のみ。中央に大きな残ガラが残る。</div>
+    </div>
+    <div class="mode-card" id="mode-outline-clean" onclick="setMode('outline-clean')">
+      <div class="mode-card-title">④ 外周のみ（ギザギザなし）</div>
+      <div class="mode-card-desc">輪郭をまたいで削孔し被り部分が輪郭上でつながる。開口サイズぴったり・端部きれい。</div>
+    </div>
+  </div>
+ 
+  <div class="gara-target-box" id="gara-target-box">
+    <div class="gara-target-title">🪨 中央残ガラの目標重量</div>
+    <div class="form-row" style="margin-bottom:0;">
+      <div class="form-group">
+        <label>1ブロックあたりの目標重量 (kg)</label>
+        <input type="number" id="target-gara" value="50" min="1">
+      </div>
+    </div>
+    <div class="gara-target-hint">残ガラをこの重量以下の四角いブロックに分割するよう、縦横に分割コアを自動追加します</div>
+  </div>
+</div>
+ 
+<div class="error-msg" id="error-msg"></div>
+<button class="calc-btn" onclick="calculate()">▶ 計算する</button>
+ 
+<!-- 結果 -->
+<div class="card hidden" id="result-section">
+  <div class="card-title">計算結果</div>
+  <div class="result-grid">
+    <div class="result-item">
+      <div class="result-label">外周・充填コア本数</div>
+      <div class="result-value" id="res-main-count">-</div>
+      <div class="result-unit">本</div>
+    </div>
+    <div class="result-item yellow hidden" id="res-split-item">
+      <div class="result-label">分割コア本数</div>
+      <div class="result-value" id="res-split-count">-</div>
+      <div class="result-unit">本</div>
+    </div>
+    <div class="result-item">
+      <div class="result-label">コア合計本数</div>
+      <div class="result-value" id="res-total-count">-</div>
+      <div class="result-unit">本</div>
+    </div>
+    <div class="result-item">
+      <div class="result-label">コア1本の重量</div>
+      <div class="result-value" id="res-w1">-</div>
+      <div class="result-unit">kg / 本</div>
+    </div>
+    <div class="result-item green hidden" id="res-gara-item">
+      <div class="result-label">中央残ガラ推定</div>
+      <div class="result-value" id="res-gara">-</div>
+      <div class="result-unit">kg</div>
+    </div>
+    <div class="result-item blue hidden" id="res-total-weight-item">
+      <div class="result-label">コア除去 合計重量</div>
+      <div class="result-value" id="res-total-weight">-</div>
+      <div class="result-unit">kg</div>
+    </div>
+  </div>
+  <table class="detail-table">
+    <tr><td>開口面積</td><td id="d-area">-</td></tr>
+    <tr><td>施工モード</td><td id="d-mode">-</td></tr>
+    <tr><td>コア径</td><td id="d-phi">-</td></tr>
+    <tr><td>コア中心オフセット</td><td id="d-offset">-</td></tr>
+    <tr><td>被り</td><td id="d-overlap">-</td></tr>
+    <tr><td>壁厚</td><td id="d-wall">-</td></tr>
+    <tr><td>比重</td><td id="d-density">-</td></tr>
+    <tr id="d-target-row" style="display:none;"><td>目標ガラ重量</td><td id="d-target">-</td></tr>
+    <tr id="d-blocks-row" style="display:none;"><td>残ガラ分割</td><td id="d-blocks">-</td></tr>
+  </table>
+</div>
+ 
+<!-- 配置図 -->
+<div id="canvas-wrap">
+  <div class="card-title" style="margin-bottom:8px;">コア配置図</div>
+  <canvas id="canvas"></canvas>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6;opacity:.5;"></div>指定開口</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>コア（内側）</div>
+    <div class="legend-item" id="legend-outside"><div class="legend-dot" style="background:rgba(249,115,22,0.3);border:1px dashed #f97316;"></div>コア（はみ出し）</div>
+    <div class="legend-item" id="legend-corner" style="display:none;"><div class="legend-dot" style="background:#a855f7;"></div>角コア</div>
+    <div class="legend-item" id="legend-split" style="display:none;"><div class="legend-dot" style="background:#eab308;"></div>分割コア</div>
+  </div>
+</div>
+ 
+<script>
+let currentShape='rect', currentMode='full-jagged';
+ 
+// ===== UI =====
+function setShape(s){
+  currentShape=s;
+  document.querySelectorAll('#shape-tabs .tab').forEach((t,i)=>
+    t.classList.toggle('active',['rect','circle','lshape'][i]===s));
+  ['rect','circle','lshape'].forEach(id=>
+    document.getElementById('input-'+id).classList.toggle('hidden',id!==s));
+}
+ 
+function setMode(m){
+  currentMode=m;
+  ['full-jagged','full-clean','outline-jagged','outline-clean'].forEach(id=>
+    document.getElementById('mode-'+id).classList.toggle('active',id===m));
+  const isOutline = m==='outline-jagged'||m==='outline-clean';
+  document.getElementById('gara-target-box').style.display=isOutline?'block':'none';
+}
+ 
+function onSettingChange(){
+  document.getElementById('custom-phi-group').classList.toggle('hidden',
+    document.getElementById('core-phi').value!=='custom');
+  updatePreview();
+}
+ 
+function getCorePhi(){
+  const v=document.getElementById('core-phi').value;
+  return v==='custom'?parseFloat(document.getElementById('custom-phi').value):parseFloat(v);
+}
+ 
+function updatePreview(){
+  const phi=getCorePhi(),wallT=parseFloat(document.getElementById('wall-t').value),
+        density=parseFloat(document.getElementById('density').value);
+  if(!phi||!wallT||!density||isNaN(phi)){document.getElementById('preview-w1').textContent='-';return;}
+  const vol=Math.PI*(phi/2)**2*wallT/1000;
+  const w=vol*density/1000;
+  document.getElementById('preview-w1').textContent=w.toFixed(2);
+  document.getElementById('preview-detail').textContent=`Φ${phi} × t${wallT}\n${vol.toFixed(0)} cm³`;
+}
+updatePreview();
+ 
+function showError(msg){document.getElementById('error-msg').textContent=msg;document.getElementById('error-msg').style.display='block';}
+function clearError(){document.getElementById('error-msg').style.display='none';}
+ 
+// ===== 開口定義 =====
+function getOpening(){
+  if(currentShape==='rect'){
+    const W=parseFloat(document.getElementById('rect-w').value),H=parseFloat(document.getElementById('rect-h').value);
+    if(!W||!H)return null;
+    return{type:'rect',x:0,y:0,w:W,h:H,area:W*H};
+  }else if(currentShape==='circle'){
+    const D=parseFloat(document.getElementById('circle-d').value);
+    if(!D)return null;
+    return{type:'circle',cx:0,cy:0,r:D/2,area:Math.PI*(D/2)**2};
+  }else{
+    const W=parseFloat(document.getElementById('l-w').value),H=parseFloat(document.getElementById('l-h').value);
+    const CW=parseFloat(document.getElementById('l-cw').value),CH=parseFloat(document.getElementById('l-ch').value);
+    if(!W||!H||!CW||!CH)return null;
+    if(CW>=W||CH>=H)return null;
+    return{type:'lshape',x:0,y:0,w:W,h:H,cw:CW,ch:CH,area:W*H-CW*CH};
+  }
+}
+ 
+function ptIn(op,px,py){
+  if(op.type==='rect')return px>=op.x&&px<=op.x+op.w&&py>=op.y&&py<=op.y+op.h;
+  if(op.type==='circle'){const dx=px-op.cx,dy=py-op.cy;return dx*dx+dy*dy<=op.r*op.r;}
+  const inMain=px>=op.x&&px<=op.x+op.w&&py>=op.y&&py<=op.y+op.h;
+  const inCut=px>=op.x+op.w-op.cw&&px<=op.x+op.w&&py>=op.y&&py<=op.y+op.ch;
+  return inMain&&!inCut;
+}
+ 
+// ===== ギザギザなしの中心オフセット計算 =====
+// コアが輪郭をまたぐ。隣コアとの被りがoverlapのとき、
+// 被りの端が輪郭上でつながる = ギザギザがギリギリ消える位置
+// → 中心は輪郭から【内側に】 overlap/2
+// 例: 160Φ overlap=20mm → 中心は輪郭から内側10mm（外側に70mmはみ出す）
+function cleanOffset(phi, overlap){
+  // 正の値 = 内側への距離
+  return overlap / 2;
+}
+ 
+// ===== びっしり配置 =====
+function arrangeFull(op, phi, overlap, isClean){
+  const r=phi/2, step=phi-overlap;
+  if(step<=0) return [];
+
+  // 円形の「ギザギザなし」は、外周をきれいになぞってから中を埋める
+  if(op.type==='circle' && isClean) {
+    const pts = getOutlinePos(op, phi, overlap, true);
+    const R_inner = op.r - cleanOffset(phi, overlap) - step; 
+    if (R_inner > 0) {
+       const nx = Math.max(1, Math.round((2*R_inner) / step)) + 1;
+       const dx = 2*R_inner / (nx-1 || 1);
+       for(let i=0; i<nx; i++) {
+         const cx = op.cx - R_inner + i*dx;
+         for(let j=0; j<nx; j++) {
+           const cy = op.cy - R_inner + j*dx;
+           if ((cx-op.cx)**2 + (cy-op.cy)**2 <= R_inner**2 + 0.01) {
+             pts.push([cx,cy]);
+           }
+         }
+       }
+    }
+    return pts;
+  }
+ 
+  // ギザギザなし: 中心は輪郭からinset内側（輪郭をまたぐ、4辺がきれいな直線になる）
+  // ギザギザあり: 中心はr内側（完全に開口内）
+  const inset = isClean ? cleanOffset(phi,overlap) : r;
+  
+  let x0,y0,x1,y1;
+  if(op.type==='rect'){
+    x0=op.x+inset; y0=op.y+inset; x1=op.x+op.w-inset; y1=op.y+op.h-inset;
+  }else if(op.type==='circle'){
+    x0=op.cx-op.r+inset; y0=op.cy-op.r+inset; x1=op.cx+op.r-inset; y1=op.cy+op.r-inset;
+  }else{
+    x0=op.x+inset; y0=op.y+inset; x1=op.x+op.w-inset; y1=op.y+op.h-inset;
+  }
+ 
+  const W=x1-x0, H=y1-y0;
+  if(W<0||H<0) return [];
+ 
+  // 横・縦それぞれ最少本数（数学的に隙間ができない最小の配置数）
+  const nCols = W<0.01 ? 1 : Math.max(1, Math.round(W/step)) + 1;
+  const nRows = H<0.01 ? 1 : Math.max(1, Math.round(H/step)) + 1;
+ 
+  // 四方の輪郭にコア中心がピタッと乗るように均等間隔を算出
+  const dx = nCols>1 ? W/(nCols-1) : 0;
+  const dy = nRows>1 ? H/(nRows-1) : 0;
+ 
+  const xList=[];
+  for(let i=0;i<nCols;i++) xList.push(x0 + i*dx);
+  const yList=[];
+  for(let j=0;j<nRows;j++) yList.push(y0 + j*dy);
+ 
+  const pts=[];
+  for(const px of xList){
+    for(const py of yList){
+      if (op.type === 'circle') {
+        const dist = Math.sqrt((px-op.cx)**2 + (py-op.cy)**2);
+        if (dist <= op.r - inset + 0.01) pts.push([px,py]);
+      } else if (op.type === 'lshape') {
+        const inMain = px>=op.x+inset-0.01 && px<=op.x+op.w-inset+0.01 && py>=op.y+inset-0.01 && py<=op.y+op.h-inset+0.01;
+        const R_edge = op.x + op.w - op.cw - inset;
+        const B_edge = op.y + op.ch + inset;
+        const inCut = px > R_edge + 0.01 && py < B_edge - 0.01;
+        if (inMain && !inCut) pts.push([px,py]);
+      } else {
+        pts.push([px,py]);
+      }
+    }
+  }
+  return pts;
+}
+ 
+// 開口をco分だけ外側に拡張した領域内か（ギザギザなし用）
+function ptInExpanded(op,px,py,co){
+  if(op.type==='rect')
+    return px>=op.x-co&&px<=op.x+op.w+co&&py>=op.y-co&&py<=op.y+op.h+co;
+  if(op.type==='circle'){
+    const dx=px-op.cx,dy=py-op.cy;return dx*dx+dy*dy<=(op.r+co)**2;
+  }
+  // L字: 外形を拡張した内部かつ切り欠きを縮小した外部
+  const inMain=px>=op.x-co&&px<=op.x+op.w+co&&py>=op.y-co&&py<=op.y+op.h+co;
+  const inCut=px>=op.x+op.w-op.cw+co&&px<=op.x+op.w-co&&py>=op.y-co&&py<=op.y+op.ch-co;
+  return inMain&&!inCut;
+}
+ 
+function ptInWithInset(op,px,py,r){
+  return ptIn(op,px-r,py)&&ptIn(op,px+r,py)&&ptIn(op,px,py-r)&&ptIn(op,px,py+r);
+}
+ 
+// ===== 外周コア配置 =====
+function getOutlinePos(op, phi, overlap, isClean){
+  const r=phi/2, step=phi-overlap;
+  if(step<=0)return[];
+  const inset = isClean ? cleanOffset(phi,overlap) : r;
+  const pts=[];
+
+  if(op.type==='circle'){
+    const R=op.r-inset;
+    if(R<=0)return[];
+    const perim = 2*Math.PI*R;
+    const n = Math.max(3, Math.round(perim/step));
+    const actualStep = perim / n;
+    for(let i=0; i<n; i++){
+      const a = (2*Math.PI*i)/n;
+      pts.push([op.cx+R*Math.cos(a), op.cy+R*Math.sin(a)]);
+    }
+    return pts;
+  }
+  
+  const corners = getCornerPos(op, phi, overlap, isClean);
+  let perim = 0;
+  const edges = [];
+  for(let i=0; i<corners.length; i++) {
+    const [ax, ay] = corners[i];
+    const [bx, by] = corners[(i+1)%corners.length];
+    const len = Math.sqrt((bx-ax)**2 + (by-ay)**2);
+    edges.push({ax, ay, bx, by, len, start: perim});
+    perim += len;
+  }
+  
+  const n = Math.max(1, Math.round(perim / step));
+  const actualStep = perim / n;
+  
+  for(let i=0; i<n; i++) {
+    let d = i * actualStep;
+    for(const edge of edges) {
+      if (d >= edge.start && d < edge.start + edge.len + 0.001) {
+        const t = (d - edge.start) / edge.len;
+        pts.push([edge.ax + (edge.bx - edge.ax)*t, edge.ay + (edge.by - edge.ay)*t]);
+        break;
+      }
+    }
+  }
+  return pts;
+}
+ 
+// ===== 角コア =====
+function getCornerPos(op, phi, overlap, isClean){
+  const inset = isClean ? cleanOffset(phi,overlap) : phi/2;
+  const corners=[];
+  if(op.type==='rect'){
+    corners.push(
+      [op.x+inset,        op.y+inset],
+      [op.x+op.w-inset,   op.y+inset],
+      [op.x+op.w-inset,   op.y+op.h-inset],
+      [op.x+inset,        op.y+op.h-inset]
+    );
+  }else if(op.type==='lshape'){
+    const{x,y,w,h,cw,ch}=op;
+    corners.push(
+      [x+inset,       y+inset],
+      [x+w-cw-inset,  y+inset],
+      [x+w-cw-inset,  y+ch+inset], // 内角（凹）
+      [x+w-inset,     y+ch+inset],
+      [x+w-inset,     y+h-inset],
+      [x+inset,       y+h-inset]
+    );
+  }
+  return corners;
+}
+ 
+// ===== 分割コア（縦横格子） =====
+function getSplitPos(op, existingPos, phi, overlap, wallT, density, targetKg, w1_kg, isClean){
+  const r=phi/2, step=phi-overlap;
+  if(step<=0)return{pts:[],cols:0,rows:0,garaKg:0};
+ 
+  // 外周コア中心の内側距離
+  const inset = isClean ? cleanOffset(phi,overlap) : r;
+  // 残ガラ領域 = 外周コア中心からさらにr内側（コアの内縁）
+  const innerInset = inset + r;
+ 
+  let rx0,ry0,rx1,ry1;
+  if(op.type==='rect'){
+    rx0=op.x+innerInset; ry0=op.y+innerInset;
+    rx1=op.x+op.w-innerInset; ry1=op.y+op.h-innerInset;
+  }else if(op.type==='circle'){
+    rx0=op.cx-op.r+innerInset; ry0=op.cy-op.r+innerInset;
+    rx1=op.cx+op.r-innerInset; ry1=op.cy+op.r-innerInset;
+  }else{
+    rx0=op.x+innerInset; ry0=op.y+innerInset;
+    rx1=op.x+op.w-innerInset; ry1=op.y+op.h-innerInset;
+  }
+  if(rx0>=rx1||ry0>=ry1)return{pts:[],cols:1,rows:1,garaKg:0};
+ 
+  const garaW=rx1-rx0, garaH=ry1-ry0;
+  const garaVol_cm3=garaW*garaH*wallT/1000;
+  const garaKg=garaVol_cm3*density/1000;
+  if(garaKg<=targetKg)return{pts:[],cols:1,rows:1,garaKg};
+ 
+  const nBlocks=Math.ceil(garaKg/targetKg);
+  const cols=Math.ceil(Math.sqrt(nBlocks));
+  const rows=Math.ceil(nBlocks/cols);
+  const all=[...existingPos];
+  const pts=[];
+
+  // 内部グリッドにスナップ（縦横の交差点でコアが無駄に重複するのを防ぐため）
+  let xGrid = [], yGrid = [];
+  if(op.type==='rect'){
+    const xStart = op.x + inset, xEnd = op.x + op.w - inset;
+    const lenX = xEnd - xStart;
+    const nX = Math.max(1, Math.round(lenX / step));
+    for(let i=1; i<nX; i++) xGrid.push(xStart + (lenX * i) / nX);
+    
+    const yStart = op.y + inset, yEnd = op.y + op.h - inset;
+    const lenY = yEnd - yStart;
+    const nY = Math.max(1, Math.round(lenY / step));
+    for(let i=1; i<nY; i++) yGrid.push(yStart + (lenY * i) / nY);
+  } else {
+    // 矩形以外は既存のコア座標にスナップさせる
+    for(const [px, py] of existingPos) {
+      xGrid.push(Math.round(px*10)/10);
+      yGrid.push(Math.round(py*10)/10);
+    }
+    xGrid = [...new Set(xGrid)].sort((a,b)=>a-b);
+    yGrid = [...new Set(yGrid)].sort((a,b)=>a-b);
+  }
+
+  function snap(val, grid, minV, maxV) {
+    let valid = grid.filter(v => v >= minV - 0.1 && v <= maxV + 0.1);
+    if(valid.length === 0) return val;
+    let best = valid[0], minD = Math.abs(val - valid[0]);
+    for(let i=1; i<valid.length; i++){
+      if(Math.abs(val - valid[i]) < minD){
+        minD = Math.abs(val - valid[i]);
+        best = valid[i];
+      }
+    }
+    return best;
+  }
+
+  function getVerticalSegment(lineX) {
+    if(op.type==='rect'){
+      return [op.y+inset, op.y+op.h-inset];
+    } else if (op.type==='circle') {
+      const R = op.r - inset;
+      const dx = lineX - op.cx;
+      if (Math.abs(dx) > R) return null;
+      const dy = Math.sqrt(R*R - dx*dx);
+      return [op.cy - dy, op.cy + dy];
+    } else { // lshape
+      const R = op.x + op.w - op.cw - inset;
+      if (lineX <= R + 0.01) {
+        return [op.y + inset, op.y + op.h - inset];
+      } else {
+        return [op.y + op.ch + inset, op.y + op.h - inset];
+      }
+    }
+  }
+
+  function getHorizontalSegment(lineY) {
+    if(op.type==='rect'){
+      return [op.x+inset, op.x+op.w-inset];
+    } else if (op.type==='circle') {
+      const R = op.r - inset;
+      const dy = lineY - op.cy;
+      if (Math.abs(dy) > R) return null;
+      const dx = Math.sqrt(R*R - dy*dy);
+      return [op.cx - dx, op.cx + dx];
+    } else { // lshape
+      const B = op.y + op.ch + inset;
+      if (lineY < B - 0.01) {
+        return [op.x + inset, op.x + op.w - op.cw - inset];
+      } else {
+        return [op.x + inset, op.x + op.w - inset];
+      }
+    }
+  }
+ 
+  // 縦の切断線（外周コアの内縁から内縁まで完全貫通）
+  for(let c=1;c<cols;c++){
+    const rawX = rx0+(garaW*c/cols);
+    const lineX = snap(rawX, xGrid, rx0, rx1);
+    const seg = getVerticalSegment(lineX);
+    if (!seg) continue;
+    const [yStart, yEnd] = seg;
+    const len = yEnd - yStart;
+    if (len <= 0) continue;
+    const n = Math.max(1, Math.round(len / step));
+    for(let i=1; i<n; i++) {
+      const y = yStart + (len * i) / n;
+      let ok=true;
+      for(const[ex,ey]of all)if((lineX-ex)**2+(y-ey)**2<100){ok=false;break;}
+      if(ok){pts.push([lineX,y]);all.push([lineX,y]);}
+    }
+  }
+  // 横の切断線（外周コアの内縁から内縁まで完全貫通）
+  for(let rw=1;rw<rows;rw++){
+    const rawY = ry0+(garaH*rw/rows);
+    const lineY = snap(rawY, yGrid, ry0, ry1);
+    const seg = getHorizontalSegment(lineY);
+    if (!seg) continue;
+    const [xStart, xEnd] = seg;
+    const len = xEnd - xStart;
+    if (len <= 0) continue;
+    const n = Math.max(1, Math.round(len / step));
+    for(let i=1; i<n; i++) {
+      const x = xStart + (len * i) / n;
+      let ok=true;
+      for(const[ex,ey]of all)if((x-ex)**2+(lineY-ey)**2<100){ok=false;break;}
+      if(ok){pts.push([x,lineY]);all.push([x,lineY]);}
+    }
+  }
+  return{pts,cols,rows,garaKg};
+}
+ 
+// ===== メイン計算 =====
+function calculate(){
+  clearError();
+  const op=getOpening();
+  if(!op){showError('開口寸法を正しく入力してください');return;}
+  const phi=getCorePhi();
+  const wallT=parseFloat(document.getElementById('wall-t').value);
+  const density=parseFloat(document.getElementById('density').value);
+  const overlap=parseFloat(document.getElementById('overlap').value)||0;
+  if(!phi||!wallT||!density){showError('全項目を入力してください');return;}
+ 
+  const vol1_cm3=Math.PI*(phi/2)**2*wallT/1000;
+  const w1_kg=vol1_cm3*density/1000;
+  const isFull=currentMode==='full-jagged'||currentMode==='full-clean';
+  const isClean=currentMode==='full-clean'||currentMode==='outline-clean';
+  const isOutline=currentMode==='outline-jagged'||currentMode==='outline-clean';
+  const co=cleanOffset(phi,overlap);
+ 
+  let mainPos=[],cornerPos=[],splitPos=[];
+  let garaKg=0;
+  let splitInfo=null;
+ 
+  if(isFull){
+    mainPos=arrangeFull(op,phi,overlap,isClean);
+    if(mainPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
+  }else{
+    mainPos=getOutlinePos(op,phi,overlap,isClean);
+    if(mainPos.length===0){showError('コアを配置できません。径・被り・開口サイズを確認してください');return;}
+ 
+    // 角コア
+    if(op.type!=='circle'){
+      const cands=getCornerPos(op,phi,overlap,isClean);
+      const minDist=(phi-overlap)-1;
+      for(const[cx,cy]of cands){
+        let too=false;
+        for(const[ex,ey]of mainPos)if((cx-ex)**2+(cy-ey)**2<minDist**2){too=true;break;}
+        if(!too)cornerPos.push([cx,cy]);
+      }
+    }
+ 
+    // 残ガラ重量推定
+    const allMain=[...mainPos,...cornerPos];
+    const coreVolInside=allMain.length*vol1_cm3*(isClean?0.5:1.0);
+    garaKg=Math.max(0,(op.area*wallT/1000-coreVolInside)*density/1000);
+ 
+    // 分割コア
+    const targetGara=parseFloat(document.getElementById('target-gara').value)||0;
+    if(targetGara>0&&garaKg>targetGara){
+      splitInfo=getSplitPos(op,allMain,phi,overlap,wallT,density,targetGara,w1_kg,isClean);
+      splitPos=splitInfo.pts;
+      garaKg=Math.max(0,garaKg-splitPos.length*w1_kg);
+    }
+  }
+ 
+  const totalCount=mainPos.length+cornerPos.length+splitPos.length;
+  const totalWeight=totalCount*w1_kg;
+ 
+  // 表示
+  document.getElementById('res-main-count').textContent=mainPos.length+cornerPos.length;
+  document.getElementById('res-total-count').textContent=totalCount;
+  document.getElementById('res-w1').textContent=w1_kg.toFixed(2);
+  document.getElementById('res-total-weight').textContent=totalWeight.toFixed(1);
+ 
+  if(isOutline){
+    document.getElementById('res-gara-item').classList.remove('hidden');
+    document.getElementById('res-gara').textContent=garaKg.toFixed(1);
+    document.getElementById('res-total-weight-item').classList.remove('hidden');
+    document.getElementById('d-target-row').style.display='';
+    document.getElementById('d-target').textContent=(parseFloat(document.getElementById('target-gara').value)||0)+' kg';
+  }else{
+    document.getElementById('res-gara-item').classList.add('hidden');
+    document.getElementById('res-total-weight-item').classList.add('hidden');
+    document.getElementById('d-target-row').style.display='none';
+  }
+ 
+  if(splitPos.length>0){
+    document.getElementById('res-split-item').classList.remove('hidden');
+    document.getElementById('res-split-count').textContent=splitPos.length;
+    document.getElementById('legend-split').style.display='flex';
+    if(splitInfo){
+      document.getElementById('d-blocks-row').style.display='';
+      document.getElementById('d-blocks').textContent=`${splitInfo.cols}列 × ${splitInfo.rows}行`;
+    }
+  }else{
+    document.getElementById('res-split-item').classList.add('hidden');
+    document.getElementById('legend-split').style.display='none';
+    document.getElementById('d-blocks-row').style.display='none';
+  }
+ 
+  document.getElementById('legend-corner').style.display=cornerPos.length>0?'flex':'none';
+  document.getElementById('legend-outside').style.display=isClean?'flex':'none';
+ 
+  document.getElementById('d-area').textContent=(op.area/1e6).toFixed(4)+' m²';
+  document.getElementById('d-mode').textContent=
+    {'full-jagged':'①びっしりギザギザあり','full-clean':'②びっしりギザギザなし',
+     'outline-jagged':'③外周ギザギザあり','outline-clean':'④外周ギザギザなし'}[currentMode];
+  document.getElementById('d-phi').textContent=phi+' mm';
+  document.getElementById('d-offset').textContent=isClean
+    ? `輪郭から内側 ${co.toFixed(1)} mm（外側はみ出し ${(phi/2-co).toFixed(1)} mm）`
+    : `輪郭から内側 ${(phi/2).toFixed(1)} mm（はみ出しなし）`;
+  document.getElementById('d-overlap').textContent=overlap+' mm';
+  document.getElementById('d-wall').textContent=wallT+' mm';
+  document.getElementById('d-density').textContent=density;
+ 
+  document.getElementById('result-section').classList.remove('hidden');
+  drawCanvas(op,mainPos,cornerPos,splitPos,phi,overlap,isClean);
+}
+ 
+// ===== 描画 =====
+function drawCanvas(op,mainPos,cornerPos,splitPos,phi,overlap,isClean){
+  const wrap=document.getElementById('canvas-wrap');
+  wrap.style.display='block';
+  const canvas=document.getElementById('canvas');
+  const PAD=40, MAX_W=Math.min(window.innerWidth-60,500);
+  const co=cleanOffset(phi,overlap);
+ 
+  let bx0,by0,bx1,by1;
+  if(op.type==='rect'){bx0=op.x;by0=op.y;bx1=op.x+op.w;by1=op.y+op.h;}
+  else if(op.type==='circle'){bx0=op.cx-op.r;by0=op.cy-op.r;bx1=op.cx+op.r;by1=op.cy+op.r;}
+  else{bx0=op.x;by0=op.y;bx1=op.x+op.w;by1=op.y+op.h;}
+ 
+  // ギザギザなしはコアが外側にはみ出す（r - inset 分）
+  if(isClean){
+    const overhang = phi/2 - cleanOffset(phi,overlap);
+    bx0-=overhang+10; by0-=overhang+10; bx1+=overhang+10; by1+=overhang+10;
+  }
+ 
+  const mmW=bx1-bx0,mmH=by1-by0;
+  const scale=Math.min((MAX_W-2*PAD)/mmW,(MAX_W-2*PAD)/mmH,1.5);
+  canvas.width=mmW*scale+2*PAD;
+  canvas.height=mmH*scale+2*PAD;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const sx=x=>(x-bx0)*scale+PAD;
+  const sy=y=>(y-by0)*scale+PAD;
+  const sr=phi/2*scale;
+ 
+  function clipPath(){
+    ctx.beginPath();
+    if(op.type==='rect'){ctx.rect(sx(op.x),sy(op.y),op.w*scale,op.h*scale);}
+    else if(op.type==='circle'){ctx.arc(sx(op.cx),sy(op.cy),op.r*scale,0,Math.PI*2);}
+    else{
+      const{x,y,w,h,cw,ch}=op;
+      ctx.moveTo(sx(x),sy(y));ctx.lineTo(sx(x+w-cw),sy(y));
+      ctx.lineTo(sx(x+w-cw),sy(y+ch));ctx.lineTo(sx(x+w),sy(y+ch));
+      ctx.lineTo(sx(x+w),sy(y+h));ctx.lineTo(sx(x),sy(y+h));ctx.closePath();
+    }
+  }
+ 
+  // 開口
+  clipPath();
+  ctx.fillStyle='rgba(59,130,246,.12)';ctx.fill();
+  ctx.strokeStyle='#3b82f6';ctx.lineWidth=2;ctx.stroke();
+ 
+  function drawCores(positions,fillIn,strokeIn,fillOut,strokeOut){
+    for(const[cx,cy]of positions){
+      if(isClean){
+        // はみ出し部分（全体を薄く描く）
+        ctx.beginPath();ctx.arc(sx(cx),sy(cy),sr,0,Math.PI*2);
+        ctx.fillStyle=fillOut;ctx.fill();
+        ctx.strokeStyle=strokeOut;ctx.lineWidth=.8;
+        ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+      }
+      // 開口内クリップ
+      ctx.save();clipPath();ctx.clip();
+      ctx.beginPath();ctx.arc(sx(cx),sy(cy),sr,0,Math.PI*2);
+      ctx.fillStyle=fillIn;ctx.fill();
+      ctx.strokeStyle=strokeIn;ctx.lineWidth=1;ctx.stroke();
+      ctx.restore();
+    }
+  }
+ 
+  drawCores(mainPos,'rgba(249,115,22,.85)','#f97316','rgba(249,115,22,.2)','rgba(249,115,22,.5)');
+  drawCores(cornerPos,'rgba(168,85,247,.85)','#a855f7','rgba(168,85,247,.2)','rgba(168,85,247,.5)');
+  drawCores(splitPos,'rgba(234,179,8,.85)','#eab308','rgba(234,179,8,.2)','rgba(234,179,8,.5)');
+ 
+  // 開口の輪郭を最前面に再描画
+  clipPath();
+  ctx.strokeStyle='#3b82f6';ctx.lineWidth=2;ctx.stroke();
+}
+</script>
+</body>
+</html>
