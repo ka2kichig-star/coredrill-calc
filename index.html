@@ -351,23 +351,49 @@ function arrangeFull(op, phi, overlap, isClean){
   const r=phi/2, step=phi-overlap;
   if(step<=0) return [];
 
-  // 円形の「ギザギザなし」は、外周をきれいになぞってから中を埋める
-  if(op.type==='circle' && isClean) {
-    const pts = getOutlinePos(op, phi, overlap, true);
-    const R_inner = op.r - cleanOffset(phi, overlap) - step; 
-    if (R_inner > 0) {
-       const nx = Math.max(1, Math.round((2*R_inner) / step)) + 1;
-       const dx = 2*R_inner / (nx-1 || 1);
-       for(let i=0; i<nx; i++) {
-         const cx = op.cx - R_inner + i*dx;
-         for(let j=0; j<nx; j++) {
-           const cy = op.cy - R_inner + j*dx;
-           if ((cx-op.cx)**2 + (cy-op.cy)**2 <= R_inner**2 + 0.01) {
-             pts.push([cx,cy]);
-           }
-         }
-       }
+  // 円形のびっしり配置（ギザギザあり/なし両方）
+  if (op.type === 'circle') {
+    const pts = [];
+    const inset = isClean ? cleanOffset(phi, overlap) : r;
+    const R_outer = op.r - inset;
+    
+    if (R_outer <= 0) {
+      pts.push([op.cx, op.cy]);
+      return pts;
     }
+
+    // 外周コアを配置
+    const perim = 2 * Math.PI * R_outer;
+    const nOuter = Math.max(3, Math.ceil(perim / step));
+    for (let i = 0; i < nOuter; i++) {
+      const a = (2 * Math.PI * i) / nOuter;
+      pts.push([op.cx + R_outer * Math.cos(a), op.cy + R_outer * Math.sin(a)]);
+    }
+
+    // 内周コアを配置 (同心円状に)
+    let current_R = R_outer - step;
+    let addedCenter = false;
+    while (current_R > 0) {
+      if (current_R <= step / 2) {
+        pts.push([op.cx, op.cy]);
+        addedCenter = true;
+        break;
+      }
+      const p = 2 * Math.PI * current_R;
+      const n = Math.max(1, Math.ceil(p / step));
+      const offsetAngle = (current_R / step) * 0.5; // 少しずらす
+      for (let i = 0; i < n; i++) {
+        const a = offsetAngle + (2 * Math.PI * i) / n;
+        pts.push([op.cx + current_R * Math.cos(a), op.cy + current_R * Math.sin(a)]);
+      }
+      current_R -= step;
+    }
+    
+    // 中心のカバー漏れを防ぐ
+    if (!addedCenter && (R_outer >= r || R_outer > step / 2)) {
+      pts.push([op.cx, op.cy]);
+    }
+    
     return pts;
   }
  
@@ -378,8 +404,6 @@ function arrangeFull(op, phi, overlap, isClean){
   let x0,y0,x1,y1;
   if(op.type==='rect'){
     x0=op.x+inset; y0=op.y+inset; x1=op.x+op.w-inset; y1=op.y+op.h-inset;
-  }else if(op.type==='circle'){
-    x0=op.cx-op.r+inset; y0=op.cy-op.r+inset; x1=op.cx+op.r-inset; y1=op.cy+op.r-inset;
   }else{
     x0=op.x+inset; y0=op.y+inset; x1=op.x+op.w-inset; y1=op.y+op.h-inset;
   }
@@ -403,10 +427,7 @@ function arrangeFull(op, phi, overlap, isClean){
   const pts=[];
   for(const px of xList){
     for(const py of yList){
-      if (op.type === 'circle') {
-        const dist = Math.sqrt((px-op.cx)**2 + (py-op.cy)**2);
-        if (dist <= op.r - inset + 0.01) pts.push([px,py]);
-      } else if (op.type === 'lshape') {
+      if (op.type === 'lshape') {
         const inMain = px>=op.x+inset-0.01 && px<=op.x+op.w-inset+0.01 && py>=op.y+inset-0.01 && py<=op.y+op.h-inset+0.01;
         const R_edge = op.x + op.w - op.cw - inset;
         const B_edge = op.y + op.ch + inset;
